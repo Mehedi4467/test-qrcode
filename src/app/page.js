@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation"; // Import Next.js router
 import QrScanner from "qr-scanner";
 
 export default function Home() {
@@ -8,6 +10,7 @@ export default function Home() {
   const [cameraAvailable, setCameraAvailable] = useState(true);
   const [flashAvailable, setFlashAvailable] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
+  const router = useRouter(); // Initialize router
 
   useEffect(() => {
     QrScanner.hasCamera().then((hasCamera) => {
@@ -20,7 +23,7 @@ export default function Home() {
       if (videoRef.current) {
         qrScannerRef.current = new QrScanner(
           videoRef.current,
-          (result) => console.log("Decoded QR code:", result),
+          (result) => handleScanResult(result.data), // Handle QR result
           { returnDetailedScanResult: true }
         );
 
@@ -71,10 +74,18 @@ export default function Home() {
     }
   };
 
+  // Handle QR Scan Result
+  const handleScanResult = (data) => {
+    console.log("Decoded QR code:", data);
+
+    // Redirect to the given route with QR value as query param
+    router.push(`/master-invoice?id=${encodeURIComponent(data)}`);
+  };
+
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
+    <div style={{ textAlign: "center", padding: "20px", marginTop: 20 }}>
       {!cameraAvailable ? (
-        <p style={{ color: "red" }}>
+        <p style={{ color: "red", height: 500 }}>
           No camera found. Please check your device or permissions.
         </p>
       ) : (
@@ -120,7 +131,7 @@ export default function Home() {
             <button
               onClick={restartScanner}
               style={{
-                background: "#007bff",
+                background: "#28b04c",
                 color: "#fff",
                 padding: "10px 15px",
                 border: "none",
