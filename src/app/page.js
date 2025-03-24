@@ -1,18 +1,38 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation"; // Import Next.js router
+import { useRouter } from "next/navigation";
 import QrScanner from "qr-scanner";
 
-export default function Home() {
+export default function MasterInvoiceMain() {
   const videoRef = useRef(null);
   const qrScannerRef = useRef(null);
   const [cameraAvailable, setCameraAvailable] = useState(true);
   const [flashAvailable, setFlashAvailable] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
-  const router = useRouter(); // Initialize router
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
+    checkCameraPermission();
+  }, []);
+
+  const checkCameraPermission = async () => {
+    try {
+      const permission = await navigator.permissions.query({ name: "camera" });
+      if (permission.state === "denied") {
+        setPermissionDenied(true);
+        setCameraAvailable(false);
+      } else {
+        initializeScanner();
+      }
+    } catch (error) {
+      console.error("Permission check error:", error);
+      setCameraAvailable(false);
+    }
+  };
+
+  const initializeScanner = () => {
     QrScanner.hasCamera().then((hasCamera) => {
       setCameraAvailable(hasCamera);
       if (!hasCamera) {
@@ -23,7 +43,7 @@ export default function Home() {
       if (videoRef.current) {
         qrScannerRef.current = new QrScanner(
           videoRef.current,
-          (result) => handleScanResult(result.data), // Handle QR result
+          (result) => handleScanResult(result.data),
           { returnDetailedScanResult: true }
         );
 
@@ -33,16 +53,21 @@ export default function Home() {
           .catch((err) => console.error("QR Scanner error:", err));
       }
     });
+  };
 
-    return () => {
-      if (qrScannerRef.current) {
-        qrScannerRef.current.stop();
-        qrScannerRef.current.destroy();
-      }
-    };
-  }, []);
+  const requestCameraAccess = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then(() => {
+        setPermissionDenied(false);
+        initializeScanner();
+      })
+      .catch((err) => {
+        console.error("Camera access error:", err);
+        setPermissionDenied(true);
+      });
+  };
 
-  // Check if the camera supports flashlight
   const checkFlashSupport = async () => {
     if (qrScannerRef.current) {
       const hasFlash = await qrScannerRef.current.hasFlash();
@@ -50,7 +75,6 @@ export default function Home() {
     }
   };
 
-  // Toggle Flashlight
   const toggleFlash = async () => {
     if (!flashAvailable || !qrScannerRef.current) return;
     try {
@@ -66,7 +90,6 @@ export default function Home() {
     }
   };
 
-  // Restart the QR scanner
   const restartScanner = async () => {
     if (qrScannerRef.current) {
       await qrScannerRef.current.stop();
@@ -74,16 +97,17 @@ export default function Home() {
     }
   };
 
-  // Handle QR Scan Result
   const handleScanResult = (data) => {
     console.log("Decoded QR code:", data);
 
     try {
-      // Try parsing JSON if possible
       const jsonData = JSON.parse(data);
       if (jsonData.master_invoice) {
-        // Redirect with extracted master_invoice value
-        router.push(`/master-invoice?id=${encodeURIComponent(jsonData.master_invoice)}`);
+        router.push(
+          ` /master-invoice/list?id=${encodeURIComponent(
+            jsonData.master_invoice
+          )}`
+        );
       } else {
         console.error("Invalid QR Code format");
       }
@@ -94,7 +118,27 @@ export default function Home() {
 
   return (
     <div style={{ textAlign: "center", padding: "20px", marginTop: 20 }}>
-      {!cameraAvailable ? (
+      {permissionDenied ? (
+        <div>
+          <p style={{ color: "red", height: 500 }}>
+            Camera access was denied. Please enable camera permissions in your
+            browser settings.
+          </p>
+          <button
+            onClick={requestCameraAccess}
+            style={{
+              background: "#ff5733",
+              color: "#fff",
+              padding: "10px 15px",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+          >
+            Enable Camera Access
+          </button>
+        </div>
+      ) : !cameraAvailable ? (
         <p style={{ color: "red", height: 500 }}>
           No camera found. Please check your device or permissions.
         </p>
@@ -117,7 +161,6 @@ export default function Home() {
               gap: "10px",
             }}
           >
-            {/* Flashlight Button */}
             {flashAvailable && (
               <button
                 onClick={toggleFlash}
@@ -137,7 +180,6 @@ export default function Home() {
               </button>
             )}
 
-            {/* Retry Button */}
             <button
               onClick={restartScanner}
               style={{
@@ -157,6 +199,7 @@ export default function Home() {
           </div>
         </>
       )}
+         
     </div>
   );
 }
