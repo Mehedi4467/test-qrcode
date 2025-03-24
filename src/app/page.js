@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,9 +19,15 @@ export default function MasterInvoiceMain() {
   const checkCameraPermission = async () => {
     try {
       const permission = await navigator.permissions.query({ name: "camera" });
+
       if (permission.state === "denied") {
         setPermissionDenied(true);
         setCameraAvailable(false);
+
+        // Open Chrome Camera Settings
+        if (typeof window !== "undefined") {
+          window.open("chrome://settings/content/camera", "_blank");
+        }
       } else {
         initializeScanner();
       }
