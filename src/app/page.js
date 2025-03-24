@@ -78,8 +78,18 @@ export default function Home() {
   const handleScanResult = (data) => {
     console.log("Decoded QR code:", data);
 
-    // Redirect to the given route with QR value as query param
-    router.push(`/master-invoice?id=${encodeURIComponent(data)}`);
+    try {
+      // Try parsing JSON if possible
+      const jsonData = JSON.parse(data);
+      if (jsonData.master_invoice) {
+        // Redirect with extracted master_invoice value
+        router.push(`/master-invoice?id=${encodeURIComponent(jsonData.master_invoice)}`);
+      } else {
+        console.error("Invalid QR Code format");
+      }
+    } catch (err) {
+      console.error("Error parsing QR Code:", err);
+    }
   };
 
   return (
