@@ -6,7 +6,7 @@ import QrScanner from "qr-scanner";
 export default function MasterInvoiceMain() {
   const videoRef = useRef(null);
   const qrScannerRef = useRef(null);
-  const [cameraAvailable, setCameraAvailable] = useState(true);
+  const [cameraAvailable, setCameraAvailable] = useState(false);
   const [flashAvailable, setFlashAvailable] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -20,21 +20,38 @@ export default function MasterInvoiceMain() {
     try {
       const permission = await navigator.permissions.query({ name: "camera" });
 
-      if (permission.state === "denied") {
+      if (permission.state === "granted") {
+        initializeScanner();
+      } else if (permission.state === "prompt") {
+        requestCameraAccess();
+      } else {
         setPermissionDenied(true);
         setCameraAvailable(false);
+        console.error("Camera permission denied by user.");
 
-        // Open Chrome Camera Settings
+        // Suggest the user to manually enable camera
         if (typeof window !== "undefined") {
-          window.open("chrome://settings/content/camera", "_blank");
+          alert("Please enable camera access in your browser settings.");
         }
-      } else {
-        initializeScanner();
       }
     } catch (error) {
       console.error("Permission check error:", error);
       setCameraAvailable(false);
+      setPermissionDenied(true);
     }
+  };
+
+  const requestCameraAccess = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then(() => {
+        setPermissionDenied(false);
+        initializeScanner();
+      })
+      .catch((err) => {
+        console.error("Camera access error:", err);
+        setPermissionDenied(true);
+      });
   };
 
   const initializeScanner = () => {
@@ -55,22 +72,12 @@ export default function MasterInvoiceMain() {
         qrScannerRef.current
           .start()
           .then(() => checkFlashSupport())
-          .catch((err) => console.error("QR Scanner error:", err));
+          .catch((err) => {
+            console.error("QR Scanner error:", err);
+            setPermissionDenied(true);
+          });
       }
     });
-  };
-
-  const requestCameraAccess = () => {
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then(() => {
-        setPermissionDenied(false);
-        initializeScanner();
-      })
-      .catch((err) => {
-        console.error("Camera access error:", err);
-        setPermissionDenied(true);
-      });
   };
 
   const checkFlashSupport = async () => {
@@ -109,7 +116,7 @@ export default function MasterInvoiceMain() {
       const jsonData = JSON.parse(data);
       if (jsonData.master_invoice) {
         router.push(
-          ` /master-invoice/list?id=${encodeURIComponent(
+          `/master-invoice/list?id=${encodeURIComponent(
             jsonData.master_invoice
           )}`
         );
